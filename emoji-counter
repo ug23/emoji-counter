@@ -1,0 +1,47 @@
+#!/bin/bash
+
+
+if [[ $# != 1 ]]; then
+    echo "usage: emoji-counter https://xxxxxx.slack.com/archives/channel_name_xxx/p1234567890123456"
+    exit 1
+else
+
+    . ./config
+
+    TMP_FILES="emoji_url members id_name message"
+
+    curl -sSf "https://slack.com/api/emoji.list?token=${TOKEN}"  | jq -r '.emoji|to_entries[]|[.key,.value]|@csv' | sed 's/"//g' | sort > emoji_url
+
+    curl -sSf https://slack.com/api/users.list?token=${TOKEN} | jq -r '.members[]|[.id,.name]|@csv'  | sed 's/"//g' > members
+
+    URL=$1
+    CHANNEL_NAME=${URL##*archives/}; CHANNEL_NAME=${CHANNEL_NAME%%/p*}
+    ROW_TS=${URL##*/p}
+    TS=${ROW_TS:0:10}.${ROW_TS:10:6}
+    TS=`echo "scale=6; $TS+0.000001" | bc`
+
+    # fetch channel list
+    curl -sSf https://slack.com/api/channels.list?token=${TOKEN} | jq -r '.channels[] as $c|[$c.id,$c.name]|@csv' | sed 's/\"//g' > id_name
+
+    CHANNEL_ID_NAME=`grep $CHANNEL_NAME id_name`
+    CHANNEL_ID=${CHANNEL_ID_NAME%%,*}
+
+    curl -sSf "https://slack.com/api/channels.history?token=${TOKEN}&channel=${CHANNEL_ID}&latest=${TS}&count=1" | jq -r '.messages[].reactions[]|{emoji:.name,user:.users[]}|[.emoji,.user]|@csv' | sed 's/"//g' > message
+
+    BEFORE=""
+    cat message | while read line
+    do
+        EMOJI=${line%%,*}
+        if [[ $EMOJI != $BEFORE ]]; then
+            echo ===============
+            EMOJI_IMAGE_URL=`grep ${EMOJI} emoji_url`
+            EMOJI_IMAGE_URL=${EMOJI_IMAGE_URL##*,}
+            imgcat --width ${EMOJI_WIDTH} "$EMOJI_IMAGE_URL"
+            BEFORE="$EMOJI"
+        fi
+        USERNAME=`grep ${line##*,} members`
+        echo @${USERNAME##*,}
+    done
+echo ===============
+    rm -f $TMP_FILES
+fi

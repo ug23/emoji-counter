@@ -1,0 +1,4 @@
+# You can get issue here 
+# https://api.slack.com/docs/oauth-test-tokens
+export TOKEN=[Please replace your own token!!!]
+export EMOJI_WIDTH=40px
