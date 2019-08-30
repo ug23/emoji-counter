@@ -1,4 +1,5 @@
 # emoji-counter
+Slackのメッセージについているreactionとそのemojiの種類をユーザごとにカウントします
 
 ## 使い方
 1. 集計したいSlackのMessageのURLをコピーします
